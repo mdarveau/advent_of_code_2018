@@ -5,19 +5,13 @@ aoc = require('./aoc_util')
 data = "" + fs.readFileSync('./data/day5.txt')
 
 reduce = ( data ) ->
-  reduceIteration = () ->
-    modified = false
-    x = 0
-    while x < data.length-1
-      if Math.abs(data.charCodeAt(x) - data.charCodeAt(x+1)) == 32
-        data = data.substring(0, x) + data.substring(x+2)
-        modified = true
-      else
-        x++
-    return modified
-
-  while reduceIteration()
-    true
+  x = 0
+  while x < data.length-1
+    if Math.abs(data.charCodeAt(x) - data.charCodeAt(x+1)) == 32
+      data = data.substring(0, x) + data.substring(x+2)
+      x--
+    else
+      x++
 
   return data.length - 1
 
