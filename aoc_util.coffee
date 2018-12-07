@@ -27,9 +27,9 @@ module.exports = {
         res.push if f? then f(ai, bi, a[ai], b[bi]) else [ai, bi, a[ai], b[bi]]
     return res
 
-  print2DArray: ( data ) ->
+  print2DArray: ( data, joinString = ', ' ) ->
     for r in data
-      console.log r.join(', ')
+      console.log r.join(joinString)
 
   hash2DArray: ( data ) ->
     hash = ""
