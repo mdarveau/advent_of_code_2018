@@ -70,7 +70,7 @@ run = (initialStateString, nbGenerations)->
     [state, offset] = computeNextGeneration(state, offset)
     lastHundreedStates.push state
     lastHundreedStates.shift() if lastHundreedStates.length > 100
-#    console.log "Generation #{generation}: #{bigIntToInputString(state)} (#{state}) (offset: #{offset}), value #{computeValue(initialStateStringLength, state, offset)}"
+    console.log "Generation #{generation}: #{bigIntToInputString(state)} (#{state}) (offset: #{offset}), value #{computeValue(initialStateStringLength, state, offset)}"
     if lastHundreedStates.length == 100 and _.sum(lastHundreedStates)/BigInt(lastHundreedStates.length) == state
       # Looking at the result, the offset happens to be the generation number
       return computeValue(initialStateStringLength, state, nbGenerations)
