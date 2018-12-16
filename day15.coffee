@@ -2,7 +2,7 @@ fs = require('fs')
 _ = require('lodash')
 aoc = require('./aoc_util')
 
-data = aoc.parse2DArray(fs.readFileSync('./data/day15_test.txt'), '')
+data = aoc.parse2DArray(fs.readFileSync('./data/day15.txt'), '')
 
 offsetVectors = [{x: 0, y: -1}, {x: 1, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}]
 
@@ -33,8 +33,8 @@ getPointsInMap = (data, chr)->
 
 extractUnits = (data) ->
   units = []
-  units = units.concat getPointsInMap(data, 'E').map (point) -> point.type = 'E'; point.enemyType = 'G'; point.hitPoints = 200; return point;
-  units = units.concat getPointsInMap(data, 'G').map (point) -> point.type = 'G'; point.enemyType = 'E'; point.hitPoints = 200; return point;
+  units = units.concat getPointsInMap(data, 'E').map (point) -> point.type = 'E'; point.enemyType = 'G'; point.hitPoints = 200; point.attackPower = 3; return point;
+  units = units.concat getPointsInMap(data, 'G').map (point) -> point.type = 'G'; point.enemyType = 'E'; point.hitPoints = 200; point.attackPower = 3; return point;
   return units
 
 getEnnemiesInRangePoints = (data, currentUnit, units) ->
@@ -94,8 +94,15 @@ getMinPointsAround = (distanceMap, x, y) ->
 getMinAround = (distanceMap, x, y) ->
   return _.minBy(getPointsAround(distanceMap, x, y), 'value').value
 
-units = extractUnits(data)
+printRound = ( data, units ) ->
+  for row, y in data
+    rowUnits = _.filter units, {y}
+    rowUnits = _.filter rowUnits, (unit)->unit.hitPoints>0
+    rowUnits = _.sortBy rowUnits, 'x'
+    console.log row.join('') + " " + rowUnits.map((unit)->"#{unit.type}(#{unit.hitPoints})").join(', ')
 
+units = extractUnits(data)
+destroyedUnits = []
 
 completedRounds = 0
 
@@ -103,58 +110,77 @@ completedRounds = 0
 while true
   units = _.sortBy units, ['y', 'x']
   for unit, x in units
-    enemyRangePoints = getEnnemiesInRangePoints(data, unit, units)
-    if enemyRangePoints.length == 0
+    continue if _.find(destroyedUnits, unit)?
+    remainingUnits = _.differenceWith(units, destroyedUnits, _.isEqual)
+
+    if not _.find(remainingUnits, {type: unit.enemyType})?
       console.log "Combat end after #{completedRounds} completed rounds. Unit #{JSON.stringify(unit)} has no enemy"
+      remainingHitpoints = _.sumBy remainingUnits, 'hitPoints'
+      console.log "Sum if remaining hitpoints: #{remainingHitpoints}"
+      console.log "A: #{completedRounds * remainingHitpoints}"
       process.exit(0)
 
-    # Check for combat
-    inRangeOfCombat = _.some getPointsAround( data, unit.x, unit.y ), {value: unit.enemyType}
+    inRangeOfCombat = () -> _.some getPointsAround(data, unit.x, unit.y), {value: unit.enemyType}
 
-    if inRangeOfCombat
-
-    else
+    # Skip movement if in range of combat
+    unless inRangeOfCombat()
       reachableMap = computeReachableMap(data, unit.x, unit.y)
       # Get points that are reachable
+      enemyRangePoints = getEnnemiesInRangePoints(data, unit, remainingUnits)
       enemyRangePoints = _.filter enemyRangePoints, (point) -> reachableMap[point.y][point.x] == '@'
       continue if enemyRangePoints.length == 0
 
       # Compute distance to all target range points
       for enemyRangePoint in enemyRangePoints
         distanceMap = getDistanceMap(data, unit.x, unit.y, enemyRangePoint.x, enemyRangePoint.y)
-  #      aoc.print2DArray( distanceMap, '', '.')
-  #      console.log getMinAround(distanceMap, enemyRangePoint.x, enemyRangePoint.y)
+        # aoc.print2DArray( distanceMap, '', '.')
+        # console.log getMinAround(distanceMap, enemyRangePoint.x, enemyRangePoint.y)
         enemyRangePoint.distanceFromUnit = getMinAround(distanceMap, enemyRangePoint.x, enemyRangePoint.y)
 
-  #    console.log "enemyRangePoints: #{JSON.stringify(enemyRangePoints, null, '  ')}"
+      # console.log "enemyRangePoints: #{JSON.stringify(enemyRangePoints, null, '  ')}"
 
       # Select nearest point
       minDistance = _.minBy(enemyRangePoints, 'distanceFromUnit').distanceFromUnit
-  #    console.log "Min distance: #{minDistance}"
+      # console.log "Min distance: #{minDistance}"
       enemyRangePoints = _.filter enemyRangePoints, {distanceFromUnit: minDistance}
       enemyRangePoints = _.sortBy enemyRangePoints, ['y', 'x']
 
-  #    console.log "Selected enemyRangePoints: #{JSON.stringify(enemyRangePoints)}"
+      # console.log "Selected enemyRangePoints: #{JSON.stringify(enemyRangePoints)}"
 
       chosenTargetRangePoint = enemyRangePoints[0]
-  #    console.log chosenTargetRangePoint
+      # console.log chosenTargetRangePoint
 
       # Get distances back to the unit (to get the direction of the shortest path)
       distanceMap = getDistanceMap(data, chosenTargetRangePoint.x, chosenTargetRangePoint.y, unit.x, unit.y)
-  #    aoc.print2DArray( distanceMap, '', '.')
+      #    aoc.print2DArray( distanceMap, '', '.')
       newPosition = _.sortBy(getMinPointsAround(distanceMap, unit.x, unit.y), ['y', 'x'])[0]
-      console.log "Unit #{unit.type} at #{unit.x}, #{unit.y} will move to #{newPosition.x}, #{newPosition.y}"
+#      console.log "Unit #{unit.type} at #{unit.x}, #{unit.y} will move to #{newPosition.x}, #{newPosition.y}"
       data[unit.y][unit.x] = '.'
       unit.x = newPosition.x
       unit.y = newPosition.y
       data[unit.y][unit.x] = unit.type
 
-      #    aoc.print2DArray(putPointsInMap(data, enemyRangePoints, '?'), '')
+    # Check for combat
+#    console.log "Checking for combat from #{JSON.stringify(unit)}"
+#    aoc.print2DArray(data, '')
+    if inRangeOfCombat()
+      potentialTargets = []
+      for offsetVector in offsetVectors
+        potentialTargets = potentialTargets.concat _.filter remainingUnits, {type: unit.enemyType, x: unit.x + offsetVector.x, y: unit.y + offsetVector.y}
+      potentialTargets = _.uniq potentialTargets
+#      console.log "potentialTargets: #{JSON.stringify(potentialTargets, null, '  ')}"
+      targetUnit = _.sortBy( potentialTargets, ['hitPoints', 'y', 'x'] )[0]
+      targetUnit.hitPoints -= unit.attackPower
+#      console.log "Target unit: #{JSON.stringify(targetUnit)}"
+      if targetUnit.hitPoints <= 0
+        data[targetUnit.y][targetUnit.x] = '.'
+        destroyedUnits.push targetUnit
 
-#  process.exit(0)
+  units = _.differenceWith(units, destroyedUnits, _.isEqual)
+  destroyedUnits = []
 
   completedRounds++
   console.log "After #{completedRounds} completed rounds:"
-  aoc.print2DArray(data, '')
-  if completedRounds == 3
-    process.exit(0)
+  printRound(data, remainingUnits)
+#  if completedRounds == 3
+#    process.exit(0)
