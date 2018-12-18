@@ -37,6 +37,22 @@ module.exports = {
       hash += "[#{r.join(',')}]"
     return hash
 
+  makeNew2DArray: (data, initValue = null) ->
+    empty = []
+    for y in [0...data.length]
+      row = []
+      for x in [0...data[y].length]
+        row.push initValue
+      empty.push row
+    return empty
+
+  countIn2DArray: ( data, value ) ->
+    count = 0
+    for y in [0...data.length]
+      for x in [0...data[y].length]
+        count++ if data[y][x] == value
+    return count
+
   # _.cloneDeep state
   # _.some(collection, [predicate=_.identity])
   # _.find(collection, [predicate=_.identity])
