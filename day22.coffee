@@ -3,7 +3,7 @@ _ = require('lodash')
 aoc = require('./aoc_util')
 
 #depth = 510
-#width = 200
+#width = 100
 #target = {x: 10, y: 10}
 
 depth = 5616
@@ -39,9 +39,11 @@ for y in [0...map.length]
     else if x == target.x and y == target.y
       map[y][x].type = 'T'
 
-printMap = (map, depth = map.length)->
+printMap = (map, depth = map.length, current)->
   for y in [0...depth]
-    console.log _.map(map[y], 'type').join('')
+    console.log _.map(map[y], (node, x)->
+      if x == current?.x and y == current?.y then current.tool else node.type
+    ).join('')
 
 
 #printMap(map)
@@ -54,7 +56,8 @@ computeRisk = (map, target)->
         when '.' then 0
         when '=' then 1
         when '|' then 2
-        else 0
+        else
+          0
       )
   return risk
 
@@ -76,14 +79,16 @@ findTarget = (map)->
   maxY = 0
 
   queue.push {
-      x: 0
-      y: 0
-      tool: 'T'
-      time: 0
+    x: 0
+    y: 0
+    tool: 'T'
+    time: 0
   }
 
   count = 0
   sortCount = 0
+
+  solutions = []
 
   while queue.length != 0
     queue = _.sortBy queue, 'time' if ++sortCount % 1000 == 0
@@ -91,43 +96,56 @@ findTarget = (map)->
     map[current.y][current.x].time ?= {}
     continue if map[current.y][current.x].time[current.tool] <= current.time
 
-#    console.log "At #{current.x}, #{current.y} @ #{current.time}. Queue size #{queue.length}" if ++count % 1000 == 0
-#    if current.x > maxX
-#      maxX = current.x
-#      console.log "At #{current.x}, #{current.y}"
-#
-#    if current.y > maxY
-#      maxY = current.y
-#      console.log "At #{current.x}, #{current.y}"
+    #    console.log "At #{current.x}, #{current.y} @ #{current.time}. Queue size #{queue.length}" if ++count % 1000 == 0
+    #    if current.x > maxX
+    #      maxX = current.x
+    #      console.log "At #{current.x}, #{current.y}"
+    #
+    #    if current.y > maxY
+    #      maxY = current.y
+    #      console.log "At #{current.x}, #{current.y}"
 
     map[current.y][current.x].time[current.tool] = current.time
 
     if current.x == target.x and current.y == target.y
 #      return current.time + (if current.tool == 'T' then 0 else 7)
-      console.log "At target in #{current.time + (if current.tool == 'T' then 0 else 7)}"
+      final = {
+        x: current.x
+        y: current.y
+        time: current.time + (if current.tool == 'T' then 0 else 7)
+        tool: 'T'
+        previous: current
+      }
+      solutions.push final
+    else
+      for offsetVector in offsetVectors
+        newX = current.x + offsetVector.x
+        newY = current.y + offsetVector.y
+        continue if newX < 0 or newY < 0 or newX >= width or newY >= depth
 
-    for offsetVector in offsetVectors
-      newX = current.x + offsetVector.x
-      newY = current.y + offsetVector.y
-      continue if newX < 0 or newY < 0 or newX >= width or newY >= depth
-
-      # Confirm valid equipment
-      if not _.includes terrainTools[map[newY][newX].type], current.tool
-        # Switch tool
-        for newTool in terrainTools[map[newY][newX].type]
+        # Confirm valid equipment
+        if not _.includes terrainTools[map[newY][newX].type], current.tool
+          # Switch tool
+          for newTool in terrainTools[map[newY][newX].type]
+            continue unless _.includes terrainTools[map[current.y][current.x].type], newTool
+            queue.push {
+              x: newX
+              y: newY
+              tool: newTool
+              time: current.time + 8 # 7 min to switch tool + 1 min to move
+              previous: current
+            }
+        else
           queue.push {
             x: newX
             y: newY
-            tool: newTool
-            time: current.time + 8 # 7 min to switch tool + 1 min to move
+            tool: current.tool
+            time: current.time + 1
+            previous: current
           }
-      else
-        queue.push {
-          x: newX
-          y: newY
-          tool: current.tool
-          time: current.time + 1
-        }
-  return "min ^"
 
-console.log "B: " + findTarget(map)
+  solutions = _.sortBy solutions, 'time'
+  return solutions[0]
+
+
+console.log "B: " + findTarget(map).time
